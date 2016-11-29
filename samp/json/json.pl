@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 use strict;
 
-die "Cannot use JSON"
+die "Cannot use JSON, try as root : cpan install json"
   unless json::can_use();
 
 my $jsonStr = '{"x":"xxx","y":"yyy"}';
