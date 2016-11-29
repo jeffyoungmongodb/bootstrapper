@@ -29,10 +29,7 @@ func main() {
 
 func square_root(val float64) (float64) {
 
-  fmt.Printf("now its a passed float %0.8f\n" , val)
-
   var hi, lo float64 = val, 0.0
- 
   var MARGIN float64 = 0.000000001 
   var guess,chk float64 = -1.0, -1.0
 
