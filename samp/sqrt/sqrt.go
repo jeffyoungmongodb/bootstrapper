@@ -75,7 +75,6 @@ func square_root(val float64) (float64) {
     hi = 1.0 
   } 
 
-  fmt.Printf("hi =%0.8f lo=%0.8f\n" , hi,lo)
 
   for {
     guess = (hi + lo) / 2
