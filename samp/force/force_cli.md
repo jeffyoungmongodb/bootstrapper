@@ -1,4 +1,4 @@
-Fore Cli
+Force Cli
 ===============
 
 https://force-cli.heroku.com/
