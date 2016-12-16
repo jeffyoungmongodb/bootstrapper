@@ -34,4 +34,16 @@ jeff@ubuntu:~$ force query "Select User.Id,User.Name from User WHere User.Name =
 jeff@ubuntu:~$ force query "Select Id,CaseNumber from Case Where CreatedDate > 2016-12-09T23:01:01Z" --format:json
 ...
 
+
+
+
+https://developer.salesforce.com/docs/atlas.en-us.api.meta/api/sforce_api_objects_casefeed.htm
+THIS WORKED:
+
+force query "Select Body,CommentCount,InsertedById From CaseFeed WHERE LastModifiedDate >= 2016-12-13T00:00:01Z"
+
+
+
+
+Select c.Id, c.Body, (Select Id, FeedItemId, ParentId, CreatedById, CreatedDate, CommentBody, IsDeleted, InsertedById, CommentType, RelatedRecordId From FeedComments) From CaseFeed c where c.ParentId='some case id
 And you are off....

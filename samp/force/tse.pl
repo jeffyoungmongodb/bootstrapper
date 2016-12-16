@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 use strict;
 
-die "Cannot use JSON, try as root : cpan install json"
+die "Cannot use JSON, try as root : 'cpan install json'"
   unless json::can_use();
 
 die "Cannot use force cli, Please visit https://force-cli.heroku.com/ and install it"
@@ -10,12 +10,23 @@ die "Cannot use force cli, Please visit https://force-cli.heroku.com/ and instal
 force_cli::login()
   unless force_cli::is_logged_in();
 
+my $config = json::slurp_file("./dat.json");
+
+my $res = force_cli::query("Select Case.OwnerId,Case.Subject,Case.Status,Case.CaseNumber from Case WHere Case.OwnerId = '005A0000007akYNIAY'");
+
+foreach my $case (@$res)
+{
+  print "CASE: $case->{CaseNumber}\n";
+
+}
 
 
 exit(0);
 
 
 package json;
+
+
 
 sub json::slurp_file
 {
@@ -76,7 +87,7 @@ sub force_cli::exec
 {
   my $arg = shift;
   my $cmd = "force $arg";
-  my $ret = `$cmd`;
+  my $ret = `$cmd 2>&1`;
   my $rc = $?;
   my $ex = $rc >> 8;  
   return ($ex,$rc,$ret); 
@@ -109,6 +120,36 @@ sub force_cli::is_logged_in
   {
     return 0;
   }
+  else
+  {
+    my $id = '';
+    if ( $ret =~ /(.*)\s\(active\)/ )
+    {
+      $id = $1;
+    }
+    print "detected login: $id\n"; 
+    my ($ex,$rc,$ret) = force_cli::exec('whoami');
+    if ( 1 == $ex )
+    {
+      print "warning: looks stale, logging out $id\n";
+      force_cli::exec("logout $id");
+      return 0;
+    } 
+  }
+
+
+
   return 1; 
 
+}
+
+sub force_cli::query
+{
+  my $q = shift;
+  
+  my ($ex,$rc,$ret) = force_cli::exec("query \"$q\" --format:json");
+
+  my $d = json::decode($ret);
+
+  return $d;
 }
