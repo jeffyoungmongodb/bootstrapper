@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 use strict;
 
+sub util::stdout($);
 die "Cannot use JSON, try as root : 'cpan install json'"
   unless json::can_use();
 
@@ -10,19 +11,27 @@ die "Cannot use force cli, Please visit https://force-cli.heroku.com/ and instal
 force_cli::login()
   unless force_cli::is_logged_in();
 
-tse::ensure_dir();
+my $mtseConf = mtse::load_config();
+my $cache = mtse::check_cache($mtseConf);
 
-my $config = json::load_file("./dat.json");
-
-my $cache = tse::check_cache($config);
-
+#json::print($cache, 'CACHE');
+#my $x = mtse::get_tse_summary('Lorne Schachter', '005A0000006VQGVIA4');
+#json::print($x,'lsum');
 
 exit(0);
 
 #######
-package json;
 
-sub json::slurp_file
+
+package util;
+
+sub util::stdout($)
+{ 
+  my $x = shift;
+  print "mtse: $x\n"; 
+}
+
+sub util::slurp_file
 {
   my $file  = shift;
   local $/;
@@ -31,6 +40,8 @@ sub json::slurp_file
   return $json;
 }
 
+
+package json;
 
 sub json::can_use
 {
@@ -50,9 +61,23 @@ sub json::decode
 sub json::load_file
 {
   my $path = shift;
-  my $tst = json::slurp_file($path);
+  my $tst = util::slurp_file($path);
   my $ds = json::decode($tst);
   return $ds;
+}
+
+sub json::print
+{
+  my $ds = shift;
+  my $label =  shift; 
+  $label = 'none' 
+    unless defined $label;
+  my $str = json::encode($ds);
+
+  print "BEGIN JSON ($label):\n";
+  print $str;
+  print "END   JSON ($label).\n";
+
 }
 
 sub json::encode
@@ -128,11 +153,11 @@ sub force_cli::is_logged_in
     {
       $id = $1;
     }
-    print "detected login: $id\n"; 
+    util::stdout "detected login [$id]";
     my ($ex,$rc,$ret) = force_cli::exec('whoami');
     if ( 1 == $ex )
     {
-      print "warning: looks stale, logging out $id\n";
+      util::stdout("warning looks stale, logging out [$id]");
       force_cli::exec("logout $id");
       return 0;
     } 
@@ -150,30 +175,44 @@ sub force_cli::query
 }
 
 
-package tse;
+package mtse;
 
-sub tse::ensure_dir
+
+
+sub mtse::ensure_dir
 {
   my $HOME = $ENV{HOME};
   
   die "HOME environment variable returns a non existent directory, I need that to be valid [$HOME]"
     unless -d $HOME;
 
-  mkdir "$HOME/.tse",0700
-    unless -d "$HOME/.tse";
+  my $mtseDir = "$HOME/.mtse";
 
+  mkdir $mtseDir, 0700
+    unless -d $mtseDir;
 
+  return $mtseDir;
 }
 
+sub mtse::load_config
+{
+  my $dir = mtse::ensure_dir();
 
-sub tse::check_cache
+  my $fil = "$dir/mtse_conf.json";
+
+  die "$fil does not exist, create one '\n{\n  \"tses\" : \n  {  \"First Last\" : {}\n  }\n}\n'" 
+    unless -f $fil;
+
+  my $ds = json::load_file($fil);
+  return $ds;
+}
+
+sub mtse::check_cache
 {
   my $config = shift;
   my $cache = {};
 
-
   my $inClause = undef; 
-
 
   while (my ($k,$v) = each %{$config->{tses}})
   {
@@ -181,18 +220,52 @@ sub tse::check_cache
     $inClause .= "'$k'";
   }
 
-  tse::get_user_ids($inClause); 
+  my $rs = mtse::get_user_ids($inClause); 
+
+  foreach my $rec (@{$rs})
+  {
+    my $nm = $rec->{Name};
+    my $id = $rec->{Id};
+
+    $cache->{tses}->{$nm}->{Id} = $id;
+    my $tseData = mtse::get_tse_summary_data($nm,$id);
+    $cache->{tses}->{$nm}->{SummaryData} = $tseData; 
+
+  }
+
   return $cache;
 }
 
 
-sub tse::get_user_ids
+sub mtse::get_user_ids
 {
   my $inList = shift;
   my $soql = "Select User.Id,User.Name from User WHere User.Name in ($inList)";
+  util::stdout "querying user ids for configured TSEs ($inList)";
   my $res = force_cli::query($soql);
-  my $str = json::encode($res);
-  print "STR: $str\n";
   return $res;
 }
 
+sub mtse::get_tse_summary_data
+{
+  my ($nm,$id) = @_;
+
+  my $summary = {};
+  $summary->{Name} = $nm;
+
+  my 
+  $soql = "Select Case.OwnerId,Case.Status,Case.CaseNumber,AccountId,CreatedDate,ClosedDate,Comment_Count__c,Components__c from Case WHere Case.OwnerId = '$id'";
+ 
+  util::stdout "querying cases for $nm";
+  my $CaseList = force_cli::query($soql);
+  $summary->{Sources}->{CaseList} = $CaseList;
+
+  $soql = "Select CreatedDate,Is_Published__c,Case__c,Id,CreatedById,Created_By_Name__c,Is_FTS_Comment__c,Name from Case_Comment__c where CreatedById = '$id'" ;
+  util::stdout "querying comments for $nm";
+  my $CommentList = force_cli::query($soql);
+  $summary->{Sources}->{CommentList}  = $CommentList;
+
+  return $summary;
+
+  
+}
