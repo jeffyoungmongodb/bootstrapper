@@ -12,11 +12,10 @@ force_cli::login()
   unless force_cli::is_logged_in();
 
 my $mtseConf = mtse::load_config();
-my $cache = mtse::check_cache($mtseConf);
+my $cache = mtse::load_cache($mtseConf);
 
-#json::print($cache, 'CACHE');
-#my $x = mtse::get_tse_summary('Lorne Schachter', '005A0000006VQGVIA4');
-#json::print($x,'lsum');
+json::print($cache, 'CACHE');
+
 
 exit(0);
 
@@ -207,7 +206,7 @@ sub mtse::load_config
   return $ds;
 }
 
-sub mtse::check_cache
+sub mtse::load_cache
 {
   my $config = shift;
   my $cache = {};
@@ -228,8 +227,8 @@ sub mtse::check_cache
     my $id = $rec->{Id};
 
     $cache->{tses}->{$nm}->{Id} = $id;
-    my $tseData = mtse::get_tse_summary_data($nm,$id);
-    $cache->{tses}->{$nm}->{SummaryData} = $tseData; 
+    my $tseData = mtse::get_tse_data($nm,$id);
+    $cache->{tses}->{$nm}->{Data} = $tseData; 
 
   }
 
@@ -246,26 +245,26 @@ sub mtse::get_user_ids
   return $res;
 }
 
-sub mtse::get_tse_summary_data
+sub mtse::get_tse_data
 {
   my ($nm,$id) = @_;
 
-  my $summary = {};
-  $summary->{Name} = $nm;
+  my $data = {};
+  $data ->{Name} = $nm;
 
   my 
   $soql = "Select Case.OwnerId,Case.Status,Case.CaseNumber,AccountId,CreatedDate,ClosedDate,Comment_Count__c,Components__c from Case WHere Case.OwnerId = '$id'";
  
   util::stdout "querying cases for $nm";
   my $CaseList = force_cli::query($soql);
-  $summary->{Sources}->{CaseList} = $CaseList;
+  $data->{CaseList} = $CaseList;
 
   $soql = "Select CreatedDate,Is_Published__c,Case__c,Id,CreatedById,Created_By_Name__c,Is_FTS_Comment__c,Name from Case_Comment__c where CreatedById = '$id'" ;
   util::stdout "querying comments for $nm";
   my $CommentList = force_cli::query($soql);
-  $summary->{Sources}->{CommentList}  = $CommentList;
+  $data->{CommentList}  = $CommentList;
 
-  return $summary;
+  return $data;
 
   
 }
