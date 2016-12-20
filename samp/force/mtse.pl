@@ -10,23 +10,17 @@ die "Cannot use force cli, Please visit https://force-cli.heroku.com/ and instal
 force_cli::login()
   unless force_cli::is_logged_in();
 
-my $config = json::slurp_file("./dat.json");
+tse::ensure_dir();
 
-my $res = force_cli::query("Select Case.OwnerId,Case.Subject,Case.Status,Case.CaseNumber from Case WHere Case.OwnerId = '005A0000007akYNIAY'");
+my $config = json::load_file("./dat.json");
 
-foreach my $case (@$res)
-{
-  print "CASE: $case->{CaseNumber}\n";
-
-}
+my $cache = tse::check_cache($config);
 
 
 exit(0);
 
-
+#######
 package json;
-
-
 
 sub json::slurp_file
 {
@@ -51,6 +45,14 @@ sub json::decode
   require JSON;
   my $res = JSON::decode_json($json);
   return $res;
+}
+
+sub json::load_file
+{
+  my $path = shift;
+  my $tst = json::slurp_file($path);
+  my $ds = json::decode($tst);
+  return $ds;
 }
 
 sub json::encode
@@ -102,7 +104,6 @@ sub force_cli::can_use
     print STDERR "could not execute force cli program\n";
     return 0;
   }
-
   return 1; 
 }
 
@@ -137,19 +138,61 @@ sub force_cli::is_logged_in
     } 
   }
 
-
-
   return 1; 
-
 }
 
 sub force_cli::query
 {
   my $q = shift;
-  
   my ($ex,$rc,$ret) = force_cli::exec("query \"$q\" --format:json");
-
   my $d = json::decode($ret);
-
   return $d;
 }
+
+
+package tse;
+
+sub tse::ensure_dir
+{
+  my $HOME = $ENV{HOME};
+  
+  die "HOME environment variable returns a non existent directory, I need that to be valid [$HOME]"
+    unless -d $HOME;
+
+  mkdir "$HOME/.tse",0700
+    unless -d "$HOME/.tse";
+
+
+}
+
+
+sub tse::check_cache
+{
+  my $config = shift;
+  my $cache = {};
+
+
+  my $inClause = undef; 
+
+
+  while (my ($k,$v) = each %{$config->{tses}})
+  {
+    $inClause .= ', ' if  defined $inClause;
+    $inClause .= "'$k'";
+  }
+
+  tse::get_user_ids($inClause); 
+  return $cache;
+}
+
+
+sub tse::get_user_ids
+{
+  my $inList = shift;
+  my $soql = "Select User.Id,User.Name from User WHere User.Name in ($inList)";
+  my $res = force_cli::query($soql);
+  my $str = json::encode($res);
+  print "STR: $str\n";
+  return $res;
+}
+

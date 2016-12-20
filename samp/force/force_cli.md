@@ -8,6 +8,8 @@ https://force-cli.heroku.com/
 
 https://github.com/heroku/force
 
+https://workbench.developerforce.com/query.php
+
 Example Session
 ========
   
