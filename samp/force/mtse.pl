@@ -283,6 +283,13 @@ sub mtse::get_user_ids
   return $res;
 }
 
+
+sub mtse::get_case_select_clause
+{
+  my $str = 'Select Case.OwnerId,Case.Status,Case.CaseNumber,Case.LastModifiedDate,Id,Subject,AccountId,CreatedDate,ClosedDate,Comment_Count__c,Components__c from Case';
+  return $str;
+}
+
 sub mtse::get_tse_data
 {
   my ($nm,$id) = @_;
@@ -290,8 +297,10 @@ sub mtse::get_tse_data
   my $data = {};
   $data ->{Name} = $nm;
 
+  my $sel = get_case_select_clause();
+
   my 
-  $soql = "Select Case.OwnerId,Case.Status,Case.CaseNumber,Id,Subject,AccountId,CreatedDate,ClosedDate,Comment_Count__c,Components__c from Case WHere Case.OwnerId = '$id'";
+  $soql = "$sel WHere Case.OwnerId = '$id'";
  
   util::stdout "querying cases for $nm";
   my $CaseList = force_cli::query($soql);
@@ -366,13 +375,13 @@ sub mtse::summarize_tse_data
     my $review_cnt = 0;
 
 
-    foreach my $case (@$caseList) 
+    foreach my $case (sort { $a->{LastModifiedDate} cmp $b->{LastModifiedDate} } (@$caseList)) 
     { 
       $case_cnt++; 
       if ( ! mtse::is_closed_status($case->{Status})) 
       {
         $v->{Summary}->{OpenCases} = [] unless defined $v->{Summary}->{OpenCases};
-        push(@{$v->{Summary}->{OpenCases}}, "$case->{CaseNumber} : $case->{Status} : $case->{Subject}");
+        push(@{$v->{Summary}->{OpenCases}}, "$case->{CaseNumber} : $case->{Status} : $case->{Subject} : $case->{LastModifiedDate}");
         $CaseHash->{$case->{Id}} = $case;
       }
 
@@ -392,10 +401,8 @@ sub mtse::summarize_tse_data
         my $case = $CaseHash->{$comment->{'Case__c'}};
         if (! defined $case)
         {
-        
-          ##HERE 
-          my 
-          $soql = "Select Case.OwnerId,Case.Status,Case.CaseNumber,Id,Subject,AccountId,CreatedDate,ClosedDate,Comment_Count__c,Components__c from Case Where Id = '$comment->{'Case__c'}'";
+          my $sel  = mtse::get_case_select_clause();
+          my $soql = "$sel Where Id = '$comment->{'Case__c'}'";
 
           my $retrvCase = force_cli::query($soql);
           $case = pop (@{$retrvCase});
@@ -413,7 +420,6 @@ sub mtse::summarize_tse_data
     { 
       $review_cnt++; 
       $v->{Summary}->{LatestReviews} = [] unless defined $v->{Summary}->{LatestReviews};
-
     }
 
     $v->{Summary}->{CaseCount} = $case_cnt; 
