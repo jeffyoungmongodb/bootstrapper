@@ -13,10 +13,14 @@ die "Cannot use JSON, try as root : 'cpan install json'"
 die "Cannot use force cli, Please visit https://force-cli.heroku.com/ and install it"
   unless force_cli::can_use();
 
+my $commandLineOpts = mtse::get_command_line();
+
+json::print($commandLineOpts, 'CMDLINE');
+  
 force_cli::login()
   unless force_cli::is_logged_in();
 
-my $mtseConf = mtse::load_config();
+my $mtseConf = mtse::load_config($commandLineOpts);
 
 my $cache = mtse::load_cache($mtseConf);
 mtse::summarize_tse_data($cache);
@@ -34,17 +38,18 @@ exit(0);
 #use DateTime; my $dt = DateTime->now; my $x = $dt->iso8601(); print "X: $x\n";
 #######
 
-
-
-
-
-
 package util;
 
 sub util::stdout($)
 { 
   my $x = shift;
   print "mtse: $x\n"; 
+}
+
+sub util::debug($)
+{
+  my $x = shift;
+  print "mtse-debug: $x\n"; 
 }
 
 sub util::slurp_file
@@ -214,7 +219,19 @@ sub force_cli::query
 
 package mtse;
 
+sub mtse::get_command_line
+{
+  use Getopt::Long;
+  my $commandLineOpts = {};
+  my $ret = GetOptions($commandLineOpts, 
+                        'debug+',
+                        'tse=s@'
+                      );
+  util::debug("GetOptions ret=$ret");
+  die "Invalid commandline instructions" unless (1==$ret);
 
+  return $commandLineOpts;
+}
 
 sub mtse::ensure_dir
 {
@@ -233,6 +250,7 @@ sub mtse::ensure_dir
 
 sub mtse::load_config
 {
+  my $cmdLine = shift;
   my $dir = mtse::ensure_dir();
 
   my $fil = "$dir/mtse_conf.json";
@@ -241,6 +259,12 @@ sub mtse::load_config
     unless -f $fil;
 
   my $ds = json::load_file($fil);
+
+  if (defined $cmdLine)
+  {
+  }
+
+
   return $ds;
 }
 
@@ -286,7 +310,7 @@ sub mtse::get_user_ids
 
 sub mtse::get_case_select_clause
 {
-  my $str = 'Select Case.OwnerId,Case.Status,Case.CaseNumber,Case.LastModifiedDate,Id,Subject,AccountId,CreatedDate,ClosedDate,Comment_Count__c,Components__c from Case';
+  my $str = 'Select Case.OwnerId,Case.Status,Case.CaseNumber,Case.LastModifiedDate,Id,Subject,AccountId,CreatedDate,ClosedDate,Comment_Count__c,Components__c,Project__c,Owner__c from Case';
   return $str;
 }
 
