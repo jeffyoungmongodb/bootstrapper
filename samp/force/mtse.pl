@@ -7,7 +7,7 @@ sub util::stdout($);
 
 $main::DEBUG = 0;
 
-die "Cannot use JSON, try as root : 'cpan install json'"
+die "Cannot use JSON, try as root : 'cpan install JSON'"
   unless json::can_use();
 
 die "Cannot use force cli, Please visit https://force-cli.heroku.com/ and install it"
